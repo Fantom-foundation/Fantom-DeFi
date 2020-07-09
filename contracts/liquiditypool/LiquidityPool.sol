@@ -119,7 +119,7 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
         address[] memory list = _debtList[_owner];
 
         // loop the list and try to find the token
-        for (uint256 i = 0; i < tokenList.length; i++) {
+        for (uint256 i = 0; i < list.length; i++) {
             if (list[i] == _token) {
                 found = true;
                 break;
