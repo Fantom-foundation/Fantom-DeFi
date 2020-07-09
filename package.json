@@ -1,0 +1,27 @@
+{
+  "name": "fantom-defi",
+  "version": "1.0.0",
+  "description": "Fantom DeFi smart contracts implementation.",
+  "main": "truffle-config.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Fantom-foundation/Fantom-DeFi.git"
+  },
+  "keywords": [
+    "Fantom",
+    "DeFi",
+    "Solidity"
+  ],
+  "author": "Fantom Foundation",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Fantom-foundation/Fantom-DeFi/issues"
+  },
+  "homepage": "https://github.com/Fantom-foundation/Fantom-DeFi#readme",
+  "dependencies": {
+    "@openzeppelin/contracts": "^2.5.1"
+  }
+}
