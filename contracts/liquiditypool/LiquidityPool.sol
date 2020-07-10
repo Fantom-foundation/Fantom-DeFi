@@ -152,7 +152,7 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
 
     // collateralValue calculates the current value of all collateral assets
     // of a user in the ref. denomination (fUSD).
-    function collateralValue(address _user) public view returns (uint256 collateralValue)
+    function collateralValue(address _user) public view returns (uint256 cValue)
     {
         // loop all registered collateral tokens of the user
         for (uint i = 0; i < _collateralList[_user].length; i++) {
@@ -162,15 +162,15 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
             // add the asset token value to the total <asset value> = <asset amount> * <rate>
             // where the asset amount is taken from the mapping
             // _collateral: token address => owner address => amount
-            collateralValue = collateralValue.add(_collateral[_collateralList[_user][i]][_user].mul(rate));
+            cValue = cValue.add(_collateral[_collateralList[_user][i]][_user].mul(rate));
         }
 
-        return collateralValue;
+        return cValue;
     }
 
     // debtValue calculates the current value of all collateral assets
     // of a user in the ref. denomination (fUSD).
-    function debtValue(address _user) public view returns (uint256 debtValue)
+    function debtValue(address _user) public view returns (uint256 dValue)
     {
         // loop all registered debt tokens of the user
         for (uint i = 0; i < _debtList[_user].length; i++) {
@@ -180,10 +180,10 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
             // add the token debt value to the total <asset value> = <asset amount> * <rate>
             // where the asset amount is taken from the mapping
             // _collateral: token address => owner address => amount
-            debtValue = debtValue.add(_debt[_debtList[_user][i]][_user].mul(rate));
+            dValue = dValue.add(_debt[_debtList[_user][i]][_user].mul(rate));
         }
 
-        return debtValue;
+        return dValue;
     }
 
     // ------------------------------------------------------------------------
@@ -210,7 +210,7 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
         }
 
         // update the collateral value storage
-        _collateral[_token][msg.sender] = _collateral[token][msg.sender].add(_amount);
+        _collateral[_token][msg.sender] = _collateral[_token][msg.sender].add(_amount);
         _collateralTokens[msg.sender][_token] = _collateralTokens[msg.sender][_token].add(_amount);
 
         // make sure the token is on the list of collateral tokens for the sender
@@ -386,7 +386,7 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
         require(_amount > 0, "non-zero amount expected");
 
         // native tokens can not be borrowed through this contract
-        require(_token != fAddress(), "native token not borrowable");
+        require(_token != nativeToken, "native token not borrowable");
 
         // make sure there is some collateral established by this user
         // we still need to re-calculate the current value though, since the value
@@ -447,15 +447,15 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
 
         // native tokens can not be borrowed through this contract
         // so there is no debt to be repaid on it
-        require(_token != fAddress(), "native token not borrowable");
+        require(_token != nativeToken, "native token not borrowable");
 
         // subtract the returned amount from the user's debt
         _debt[_token][msg.sender] = _debt[_token][msg.sender].sub(_amount, "insufficient debt outstanding");
         _debtTokens[msg.sender][_token] = _debtTokens[msg.sender][_token].sub(_amount, "insufficient debt outstanding");
 
         // update current collateral and debt amount state
-        _collateralValue[msg.sender] = calcCollateralValue(msg.sender);
-        _debtValue[msg.sender] = calcDebtValue(msg.sender);
+        _collateralValue[msg.sender] = collateralValue(msg.sender);
+        _debtValue[msg.sender] = debtValue(msg.sender);
 
         // collect the tokens to be returned
         ERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
@@ -478,8 +478,8 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
     {
         // recalculate the collateral and debt values so we have the most recent
         // picture of the whole situation
-        _collateralValue[_owner] = calcCollateralValue(_owner);
-        _debtValue[_owner] = calcDebtValue(_owner);
+        _collateralValue[_owner] = collateralValue(_owner);
+        _debtValue[_owner] = debtValue(_owner);
 
         // criCollateralValue is the critical collateral value required for the current debt
         // to be above the liquidation border line; if the actual collateral value drops
@@ -504,7 +504,7 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
         }
 
         // update the values of collateral and debt to reflect the changed state
-        _collateralValue[_owner] = calcCollateralValue(_owner);
-        _debtValue[_owner] = calcDebtValue(_owner);
+        _collateralValue[_owner] = collateralValue(_owner);
+        _debtValue[_owner] = debtValue(_owner);
     }
 }
