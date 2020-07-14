@@ -46,7 +46,7 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
     // _debt tracks token => user => debt amount relationship
     mapping(address => mapping(address => uint256)) public _debt;
 
-    // _debtTokens tracks token => user => debt amount relationship
+    // _debtTokens tracks user => token => debt amount relationship
     mapping(address => mapping(address => uint256)) public _debtTokens;
 
     // _debtList tracks user => debt tokens list
@@ -57,6 +57,17 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
     // and may not be accurate due to the ref. denomination exchange
     // rate change.
     mapping(address => uint256) public _debtValue;
+
+    // -------------------------------------------------------------
+    // Minting data keeps information about the amount of tokens
+    // minted for particular user.
+    // -------------------------------------------------------------
+
+    // _debt tracks token => user => minted amount relationship
+    mapping(address => mapping(address => uint256)) public _minted;
+
+    // _debtTokens tracks user => token => minted amount relationship
+    mapping(address => mapping(address => uint256)) public _mintedTokens;
 
     // -------------------------------------------------------------
     // Containers and pools.
@@ -134,13 +145,17 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
 
     // readyBalance is used to assert we have enough <tokens> to cover
     // specified <amount>. The token is minted, if needed to be replenished.
-    function readyBalance(address _token, uint256 _amount) internal {
+    function readyBalance(address _user, address _token, uint256 _amount) internal {
         // do we have enough ERC20 tokens locally to satisfy the withdrawal?
         uint256 balance = ERC20(_token).balanceOf(address(this));
         if (balance < _amount) {
             // mint the missing balance for the ERC20 tokens to cover the transfer
             // the local address has to have the minter privilege
             ERC20Mintable(_token).mint(address(this), _amount.sub(balance));
+
+            // register the amount of minted tokens
+            _minted[_token][_user].add(_amount.sub(balance));
+            _mintedTokens[_user][_token].add(_amount.sub(balance));
         }
     }
 
@@ -266,7 +281,7 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
         // is this a native token or ERC20 withdrawal?
         if (_token != nativeToken) {
             // do we have enough ERC20 tokens to satisfy the withdrawal?
-            readyBalance(_token, _amount);
+            readyBalance(msg.sender, _token, _amount);
 
             // transfer the requested amount of ERC20 tokens to the caller
             ERC20(_token).safeTransfer(msg.sender, _amount);
@@ -315,7 +330,7 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
         ERC20(fUsdToken).safeTransferFrom(msg.sender, address(this), buyValueIncFee);
 
         // make sure we have enough tokens in the pool
-        readyBalance(_token, _amount);
+        readyBalance(msg.sender, _token, _amount);
 
         // transfer the purchased token amount to the buyer
         ERC20(_token).safeTransfer(msg.sender, _amount);
@@ -361,7 +376,7 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
         // make sure we have enough fUSD tokens to cover the sale
         // what is the practical meaning of minting fUSD here
         // if the pool is depleted?
-        readyBalance(fUsdToken, sellValueExFee);
+        readyBalance(msg.sender, fUsdToken, sellValueExFee);
 
         // transfer fUSD tokens to the seller
         ERC20(fUsdToken).safeTransfer(msg.sender, sellValueExFee);
@@ -428,7 +443,7 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
         _debtValue[msg.sender] = cDebtValue;
 
         // make sure we have enough of the target tokens to lend
-        readyBalance(_token, _amount);
+        readyBalance(msg.sender, _token, _amount);
 
         // transfer borrowed tokens to the user's address
         ERC20(_token).safeTransfer(msg.sender, _amount);
