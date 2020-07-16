@@ -13,6 +13,9 @@ import "../interface/IPriceOracle.sol";
 // LiquidityPool implements the contract for handling stable coin
 // and synthetic tokens liquidity pools and providing core DeFi
 // function for tokens minting, trading and lending.
+// NOTE: We use ChainLink compatible oracles to compare token values.
+// ChainLink oracles provide all USD pairs with 8 digits shift currently.
+// E.g. value 100,000,000 = 1 USD.
 contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
     // define used libs
     using SafeMath for uint256;
@@ -36,6 +39,8 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
     // _collateralValue tracks user => collateral value in ref. denomination (fUSD)
     // please note this is a stored value from the last collateral calculation
     // and may not be accurate due to the ref. denomination exchange rate change.
+    // NOTE: We use ChainLink compatible ref. oracles which provide all USD pairs
+    // with 8 digits shift. E.g. value 100,000,000 = 1 USD.
     mapping(address => uint256) public _collateralValue;
 
     // -------------------------------------------------------------
@@ -56,6 +61,8 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
     // please note this is a stored value from the last debt calculation
     // and may not be accurate due to the ref. denomination exchange
     // rate change.
+    // NOTE: We use ChainLink compatible ref. oracles which provide all USD pairs
+    // with 8 digits shift. E.g. value 100,000,000 = 1 USD.
     mapping(address => uint256) public _debtValue;
 
     // -------------------------------------------------------------
@@ -74,7 +81,9 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
     // -------------------------------------------------------------
 
     // feePool keeps information about the fee collected from
-    // internal operations, especially buy/sell and borrow/repay.
+    // internal operations, especially buy/sell and borrow/repay in fUSD.
+    // NOTE: We use ChainLink compatible ref. oracles which provide all USD pairs
+    // with 8 digits shift. E.g. value 100,000,000 = 1 USD.
     uint256 public feePool;
 
     // -------------------------------------------------------------
