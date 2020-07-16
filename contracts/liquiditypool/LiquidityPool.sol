@@ -296,7 +296,10 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
             ERC20(_token).safeTransfer(msg.sender, _amount);
         } else {
             // native tokens are being withdrawn; transfer the requested amount
-            msg.sender.sendValue(_amount);
+            // we transfer control to the recipient here, so we have to mittigate re-entrancy
+            // solhint-disable-next-line avoid-call-value
+            (bool success,) = msg.sender.call.value(_amount)("");
+            require(success, "unable to send withdraw");
         }
 
         // signal the successful asset withdrawal

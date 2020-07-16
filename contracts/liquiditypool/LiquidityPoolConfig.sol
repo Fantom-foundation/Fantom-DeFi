@@ -5,15 +5,21 @@ import "@openzeppelin/contracts/ownership/Ownable.sol";
 // LiquidityPoolConfig implements the internal configuration
 // and management functionality for the LiquidityPoll contract.
 contract LiquidityPoolConfig is Ownable {
+    // poolVersion represents the version of the Liquidity Pool contract.
+    // Through the version you can verify which source code is deployed
+    // to specific address.
+    // Current version is: 0.0.11
+    uint256 public poolVersion = 0x00B;
+
     // tradeFee4dec represents the current value of the fee used
     // for trade operations (buy/sell) kept in 4 decimals.
     // E.g. value 25 => 0.0025 => 0.25%
-    uint256 tradeFee4dec = 25;
+    uint256 public tradeFee4dec = 25;
 
     // loanEntryFee4dec represents the current value of the entry fee used
     // for loan operations (borrow/repay) kept in 4 decimals.
     // E.g. value 25 => 0.0025 => 0.25%
-    uint256 loanEntryFee4dec = 25;
+    uint256 public loanEntryFee4dec = 25;
 
     // colLiquidationRatio4dec represents a ratio between collateral
     // value and debt value below which a liquidation of the collateral
@@ -44,12 +50,12 @@ contract LiquidityPoolConfig is Ownable {
     address public nativeToken = 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF;
 
     // fUsdToken represents the address of the fUSD stable coin token ERC20 contract.
-    address public fUsdToken = 0xf15ff135dc437a2fd260476f31b3547b84f5dd0b;
+    address public fUsdToken = 0xf15Ff135dc437a2FD260476f31B3547b84F5dD0b;
 
     // priceOracle represents the address of the price oracle contract used
     // to obtain the current exchange rate between a specified token
     // and the referential fUSD.
-    address public priceOracle = 0x122aacb5f8e4a7787131a346a52f0aa78388a676;
+    address public priceOracle = 0x122aacb5F8E4A7787131a346a52f0AA78388a676;
 
     // PriceOracleChanged is emitted on the change of the price oracle contract address.
     event PriceOracleChanged(address oracle, uint256 timestamp);
