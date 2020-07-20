@@ -40,7 +40,7 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
     // please note this is a stored value from the last collateral calculation
     // and may not be accurate due to the ref. denomination exchange rate change.
     // NOTE: We use ChainLink compatible ref. oracles which provide all USD pairs
-    // with 8 digits shift. E.g. value 100,000,000 = 1 USD.
+    // with 8 digits shift. fUSD is kept in 18 digits.
     mapping(address => uint256) public _collateralValue;
 
     // -------------------------------------------------------------
@@ -62,7 +62,7 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
     // and may not be accurate due to the ref. denomination exchange
     // rate change.
     // NOTE: We use ChainLink compatible ref. oracles which provide all USD pairs
-    // with 8 digits shift. E.g. value 100,000,000 = 1 USD.
+    // with 8 digits shift. The fUSD is kept in 18 digits.
     mapping(address => uint256) public _debtValue;
 
     // -------------------------------------------------------------
@@ -83,7 +83,7 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
     // feePool keeps information about the fee collected from
     // internal operations, especially buy/sell and borrow/repay in fUSD.
     // NOTE: We use ChainLink compatible ref. oracles which provide all USD pairs
-    // with 8 digits shift. E.g. value 100,000,000 = 1 USD.
+    // with 8 digits shift. The fUSD is kept in 18 digits.
     uint256 public feePool;
 
     // -------------------------------------------------------------
@@ -168,6 +168,29 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
         }
     }
 
+    // collateralListCount returns the number of tokens registered
+    // for the given user on collateral list.
+    function collateralListCount(address _addr) public view returns (uint256) {
+        require(_collateralValue[_addr] > 0, "collateral not registered");
+        return _collateralList[_addr].length;
+    }
+
+    // debtListCount returns the number of tokens registered
+    // for the given user on debt list.
+    function debtListCount(address _addr) public view returns (uint256) {
+        require(_debtValue[_addr] > 0, "debt not registered");
+        return _debtList[_addr].length;
+    }
+
+    // priceDigitsCorrection returns the correction required
+    // for FTM/ERC20 (18 digits) to another 18 digits number exchange
+    // through an 8 digits USD (ChainLink compatible) price oracle.
+    function priceDigitsCorrection() public pure returns (uint256) {
+        // 10 ^ (srcDigits - (dstDigits - priceDigits))
+        // return 10 ** (18 - (18 - 8));
+        return 100000000;
+    }
+
     // ------------------------------------------------------------------------
     // Collateral and debt value calculation.
     // Note: We need to make sure to calculate with the same decimals here.
@@ -184,9 +207,10 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
             uint256 rate = IPriceOracle(priceOracle).getPrice(_collateralList[_user][i]);
 
             // add the asset token value to the total <asset value> = <asset amount> * <rate>
+            // the range is corrected for the FUSD digits.
             // where the asset amount is taken from the mapping
             // _collateral: token address => owner address => amount
-            cValue = cValue.add(_collateral[_collateralList[_user][i]][_user].mul(rate));
+            cValue = cValue.add(_collateral[_collateralList[_user][i]][_user].mul(rate).div(priceDigitsCorrection()));
         }
 
         return cValue;
@@ -202,9 +226,10 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
             uint256 rate = IPriceOracle(priceOracle).getPrice(_debtList[_user][i]);
 
             // add the token debt value to the total <asset value> = <asset amount> * <rate>
+            // the range is corrected for the FUSD digits.
             // where the asset amount is taken from the mapping
             // _collateral: token address => owner address => amount
-            dValue = dValue.add(_debt[_debtList[_user][i]][_user].mul(rate));
+            dValue = dValue.add(_debt[_debtList[_user][i]][_user].mul(rate).div(priceDigitsCorrection()));
         }
 
         return dValue;
@@ -330,7 +355,7 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
         // calculate the purchase value with the corresponding fee
         // e.g. how much fUSD should I pay to get the <amount> of tokens
         // NOTE: the exRate decimals need to be taken into consideration here!
-        uint256 buyValue = _amount.mul(exRate);
+        uint256 buyValue = _amount.mul(exRate).div(priceDigitsCorrection());
         uint256 fee = buyValue.mul(tradeFee4dec).div(ratioDecimalsCorrection);
         uint256 buyValueIncFee = buyValue.add(fee);
 
@@ -376,7 +401,7 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
 
         // what's the value of the token being sold in fUSD
         // e.g. how much fUSD should I get selling the <amount> of tokens
-        uint256 sellValue = _amount.mul(exRate);
+        uint256 sellValue = _amount.mul(exRate).div(priceDigitsCorrection());
 
         // what is the fee of the sale? and how much of the fUSD the seller actually gets
         uint256 fee = sellValue.mul(tradeFee4dec).div(ratioDecimalsCorrection);
@@ -425,7 +450,7 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
         require(tokenValue > 0, "debt token has no value");
 
         // calculate the entry fee and remember the value we gained
-        uint256 fee = _amount.mul(tokenValue).mul(loanEntryFee4dec).div(ratioDecimalsCorrection);
+        uint256 fee = _amount.mul(tokenValue).div(priceDigitsCorrection()).mul(loanEntryFee4dec).div(ratioDecimalsCorrection);
         feePool = feePool.add(fee);
 
         // register the debt of fee in fUSD so we can calculate the new state

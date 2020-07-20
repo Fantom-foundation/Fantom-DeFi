@@ -55,7 +55,7 @@ contract LiquidityPoolConfig is Ownable {
     // priceOracle represents the address of the price oracle contract used
     // to obtain the current exchange rate between a specified token
     // and the referential fUSD.
-    address public priceOracle = 0x122aacb5F8E4A7787131a346a52f0AA78388a676;
+    address public priceOracle = 0x57Daf039b57e9C8057ed81107ee418EE68CF15e6;
 
     // PriceOracleChanged is emitted on the change of the price oracle contract address.
     event PriceOracleChanged(address oracle, uint256 timestamp);
