@@ -486,7 +486,7 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
         // make sure we have enough target tokens to cover the trade
         readyBalance(_toToken, buyAmount, msg.sender);
 
-        // transfer fUSD tokens to the seller
+        // transfer target tokens to the buyer
         ERC20(_toToken).safeTransfer(msg.sender, buyAmount);
     }
 
