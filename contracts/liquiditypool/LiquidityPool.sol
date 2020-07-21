@@ -453,7 +453,7 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
 
             // what's the value of the token being sold in fUSD
             // e.g. how much fUSD should I get selling the <amount> of tokens
-            uint256 sellValue = _amount.mul(fromRate).div(priceDigitsCorrection());
+            sellValue = _amount.mul(fromRate).div(priceDigitsCorrection());
 
             // notify about the selling of the source token
             emit Sell(_fromToken, msg.sender, _amount, fromRate, block.timestamp);
