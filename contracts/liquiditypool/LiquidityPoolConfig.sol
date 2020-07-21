@@ -55,7 +55,7 @@ contract LiquidityPoolConfig is Ownable {
     // priceOracle represents the address of the price oracle contract used
     // to obtain the current exchange rate between a specified token
     // and the referential fUSD.
-    address public priceOracle = 0x03afbd57cfbe0e964a1c4dba03b7154a6391529b;
+    address public priceOracle = 0x03AFBD57cfbe0E964a1c4DBA03B7154A6391529b;
 
     // PriceOracleChanged is emitted on the change of the price oracle contract address.
     event PriceOracleChanged(address oracle, uint256 timestamp);
@@ -75,7 +75,7 @@ contract LiquidityPoolConfig is Ownable {
     // transferBalance transfers the balance of this contract to the specified
     // target address moving the base liquidity pool of native tokens
     // to a new address.
-    function transferBalance(address to) onlyOwner external {
+    function transferBalance(address payable to) onlyOwner external {
         to.transfer(address(this).balance);
     }
 }
