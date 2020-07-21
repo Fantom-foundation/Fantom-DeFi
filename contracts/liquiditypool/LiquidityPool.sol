@@ -154,7 +154,7 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
 
     // readyBalance is used to assert we have enough <tokens> to cover
     // specified <amount>. The token is minted, if needed to be replenished.
-    function readyBalance(address _user, address _token, uint256 _amount) internal {
+    function readyBalance(address _token, uint256 _amount, address _user) internal {
         // do we have enough ERC20 tokens locally to satisfy the withdrawal?
         uint256 balance = ERC20(_token).balanceOf(address(this));
         if (balance < _amount) {
@@ -315,7 +315,7 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
         // is this a native token or ERC20 withdrawal?
         if (_token != nativeToken) {
             // do we have enough ERC20 tokens to satisfy the withdrawal?
-            readyBalance(msg.sender, _token, _amount);
+            readyBalance(_token, _amount, msg.sender);
 
             // transfer the requested amount of ERC20 tokens to the caller
             ERC20(_token).safeTransfer(msg.sender, _amount);
@@ -367,7 +367,7 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
         ERC20(fUsdToken).safeTransferFrom(msg.sender, address(this), buyValueIncFee);
 
         // make sure we have enough tokens in the pool
-        readyBalance(msg.sender, _token, _amount);
+        readyBalance(_token, _amount, msg.sender);
 
         // transfer the purchased token amount to the buyer
         ERC20(_token).safeTransfer(msg.sender, _amount);
@@ -413,7 +413,7 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
         // make sure we have enough fUSD tokens to cover the sale
         // what is the practical meaning of minting fUSD here
         // if the pool is depleted?
-        readyBalance(msg.sender, fUsdToken, sellValueExFee);
+        readyBalance(fUsdToken, sellValueExFee, msg.sender);
 
         // transfer fUSD tokens to the seller
         ERC20(fUsdToken).safeTransfer(msg.sender, sellValueExFee);
@@ -423,6 +423,71 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
 
         // notify successful sale
         emit Sell(_token, msg.sender, _amount, exRate, block.timestamp);
+    }
+
+    // trade executes a direct exchange trade from source token
+    // to destination token using subsequent sell and buy operations.
+    // The trade always goes through the fUSD as the only allowed
+    // trade value reference.
+    function trade(address _fromToken, address _toToken, uint256 _amount) external nonReentrant {
+        // make sure the purchased amount makes sense
+        require(_amount > 0, "non-zero amount expected");
+
+        // native token can not be used in trades
+        require(_fromToken != nativeToken, "native token trading prohibited");
+        require(_toToken != nativeToken, "native token trading prohibited");
+
+        // two different tokens must be used here
+        require(_toToken != _fromToken, "different tokens expected");
+
+        // does the seller have enough balance to cover the sale?
+        uint256 balance = ERC20(_fromToken).balanceOf(msg.sender);
+        require(balance >= _amount, "insufficient funds");
+
+        // what is the sell value of the source token in fUSD
+        uint256 sellValue = _amount;
+        if (_fromToken != fUsdToken) {
+            // get the exchange rate of the token to fUSD
+            uint256 fromRate = IPriceOracle(priceOracle).getPrice(_fromToken);
+            require(fromRate > 0, "token has no value");
+
+            // what's the value of the token being sold in fUSD
+            // e.g. how much fUSD should I get selling the <amount> of tokens
+            uint256 sellValue = _amount.mul(fromRate).div(priceDigitsCorrection());
+
+            // notify about the selling of the source token
+            emit Sell(_fromToken, msg.sender, _amount, fromRate, block.timestamp);
+        }
+
+        // what is the fee of the sale? how much fUSD is left for the trade?
+        uint256 fee = sellValue.mul(tradeFee4dec).div(ratioDecimalsCorrection);
+        uint256 sellValueExFee = sellValue.sub(fee);
+
+        // what is the buy amount
+        uint256 buyAmount = sellValueExFee;
+        if (_toToken != fUsdToken) {
+            // get the exchange rate of the token to fUSD
+            uint256 toRate = IPriceOracle(priceOracle).getPrice(_toToken);
+            require(toRate > 0, "token has no value");
+
+            // how much target tokens can I get for the gained fUSD ex. fee
+            buyAmount = sellValueExFee.mul(priceDigitsCorrection()).div(toRate);
+
+            // notify about the purchase of the target token
+            emit Buy(_toToken, msg.sender, buyAmount, toRate, block.timestamp);
+        }
+
+        // claim sold token
+        ERC20(_fromToken).safeTransferFrom(msg.sender, address(this), _amount);
+
+        // remember the fee we gained from this trade
+        feePool = feePool.add(fee);
+
+        // make sure we have enough target tokens to cover the trade
+        readyBalance(_toToken, buyAmount, msg.sender);
+
+        // transfer fUSD tokens to the seller
+        ERC20(_toToken).safeTransfer(msg.sender, buyAmount);
     }
 
     // ------------------------------------------------------------------------
@@ -480,7 +545,7 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
         _debtValue[msg.sender] = cDebtValue;
 
         // make sure we have enough of the target tokens to lend
-        readyBalance(msg.sender, _token, _amount);
+        readyBalance(_token, _amount, msg.sender);
 
         // transfer borrowed tokens to the user's address
         ERC20(_token).safeTransfer(msg.sender, _amount);
