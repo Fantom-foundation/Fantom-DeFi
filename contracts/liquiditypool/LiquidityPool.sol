@@ -170,16 +170,26 @@ contract LiquidityPool is Ownable, ReentrancyGuard, LiquidityPoolConfig {
 
     // collateralListCount returns the number of tokens registered
     // for the given user on collateral list.
-    function collateralListCount(address _addr) public view returns (uint256) {
-        require(_collateralValue[_addr] > 0, "collateral not registered");
-        return _collateralList[_addr].length;
+    function collateralListCount(address _owner) public view returns (uint256) {
+        // any collateral at all?
+        if (_collateralValue[_owner] == 0) {
+            return 0;
+        }
+
+        // return the current collateral array length
+        return _collateralList[_owner].length;
     }
 
     // debtListCount returns the number of tokens registered
     // for the given user on debt list.
-    function debtListCount(address _addr) public view returns (uint256) {
-        require(_debtValue[_addr] > 0, "debt not registered");
-        return _debtList[_addr].length;
+    function debtListCount(address _owner) public view returns (uint256) {
+        // any debt at all?
+        if (_debtValue[_owner] == 0) {
+            return 0;
+        }
+
+        // return the current debt tokens array length
+        return _debtValue[_owner].length;
     }
 
     // priceDigitsCorrection returns the correction required
